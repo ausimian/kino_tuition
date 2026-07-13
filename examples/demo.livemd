@@ -1,0 +1,28 @@
+# KinoTuition demo
+
+```elixir
+Mix.install([
+  {:kino_tuition, github: "ausimian/kino_tuition"}
+])
+```
+
+## A tuition session in the browser
+
+Run the cell below. It opens an xterm.js terminal wired to a `tuition` session —
+the `tuition_demo` reference loop — running entirely on the server, its frames
+streamed to the browser and your keystrokes streamed back.
+
+```elixir
+KinoTuition.new(fn opts -> :tuition_demo.start(opts) end, cols: 100, rows: 30)
+```
+
+## Hosting the multi-pane shell
+
+Any tuition host works — you just forward the options map (with `backend:` and
+`bridge:` already merged in) to it. For the pane shell:
+
+```elixir
+panes = [{:tuition_demo_pane, "Demo"}]
+
+KinoTuition.new(fn opts -> :tuition_shell.start(panes, opts) end, cols: 120, rows: 40)
+```
