@@ -17,6 +17,25 @@ defmodule KinoTuition.Backend do
 
   `KinoTuition.Terminal` fills those two keys in for you. Nothing in the app above
   the backend seam is aware Livebook is involved.
+
+  ## Capability probing over Livebook
+
+  A tuition host that probes the terminal (e.g. `tuition_demo`, via
+  `tuition_caps:probe/1`) writes device queries and reads the replies within a
+  short (~100 ms) window. That window assumes a local tty; over Livebook the
+  server→browser→xterm→server round-trip usually overruns it, so the probe times
+  out (colours fall back to the 256-colour baseline) and xterm's replies arrive
+  *after* the loop has started, as input. The `?`-private CSI answers (DA1,
+  DECRQM, kitty-flags) are ignored by `tuition_input`, but the DECRQSS truecolor
+  read-back is a DCS (`ESC P … ST`) that decodes as a burst of `Alt`-key events.
+
+  This can't be fixed cleanly at the backend: a DCS shares its `ESC P` prefix with
+  a genuine `Alt`+`Shift`+`P` keystroke, so the reply can't be stripped from the
+  input stream unambiguously, and making `write/2` synchronous doesn't help (the
+  browser round-trip is unacknowledged and the probe's timeout is the host's).
+  Prefer a non-probing host for production — `tuition_shell` does not probe. The
+  proper fix is an upstream hook to skip probing and inject xterm.js's known-fixed
+  capabilities; tracked as a follow-up.
   """
   @behaviour :tuition_term
 

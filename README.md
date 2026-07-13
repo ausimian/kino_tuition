@@ -92,9 +92,19 @@ by tests. Follow-ups:
   `tuition_render` expects the loop to restart its diff from a fresh blank buffer
   (a full repaint) — a diff assumes both buffers share geometry — which is the
   tuition host's responsibility, not the backend's.
-- **Capabilities.** `tuition_caps` probes the terminal (DA/DSR); xterm.js answers
-  the standard queries, but handing tuition a fixed capability profile for the
-  xterm.js backend would be more predictable than round-tripping probes.
+- **Capability probing is unreliable over Livebook.** A tuition host that probes
+  (e.g. `tuition_demo`) writes terminal queries and waits ~100 ms for the replies
+  (`tuition_caps:probe/1`). Over Livebook the server→browser→xterm→server
+  round-trip usually exceeds that window, so the probe times out and colours
+  degrade to the 256-colour baseline. The late replies then arrive as input:
+  xterm's `?`-private CSI answers (DA1, DECRQM, kitty-flags) are harmlessly
+  ignored by tuition's input parser, but the DECRQSS truecolor read-back — a DCS
+  (`ESC P … ST`) — is mis-decoded as a short burst of `Alt`-key keystrokes at
+  startup. **Prefer a non-probing host for production** — `tuition_shell` does not
+  probe, so it is unaffected. The clean fix is an upstream tuition hook to skip
+  probing and accept a fixed capability profile for the xterm.js backend (whose
+  capabilities are known and constant); that is tracked as a follow-up. See
+  `KinoTuition.Backend`.
 - **Asset loading.** xterm.js is loaded from a CDN via Livebook's mediated
   `importJS`/`importCSS`. If your Livebook's CSP forbids that, vendor the assets
   and point the URLs at local copies.
