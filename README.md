@@ -86,10 +86,12 @@ by tests. Follow-ups:
   event, so that client sees the full first frame. A client that joins mid-session
   will not get a repaint until the next full frame. A robust fix keeps a
   server-side shadow of the screen (or forces a full repaint on connect).
-- **Dynamic resize.** Geometry is fixed at the configured `cols`×`rows`. Wiring
-  the xterm fit addon to the `"resize"` event the server already handles is a
-  follow-up. On resize, `tuition_render` expects a fresh blank buffer (full
-  repaint), since a diff assumes both buffers share geometry.
+- **Dynamic resize.** The browser terminal fits the cell width (xterm fit addon)
+  and reports its geometry through the `"resize"` event, so the bridge's `size/1`
+  and the tuition layout follow what is on screen. Note that on a size change
+  `tuition_render` expects the loop to restart its diff from a fresh blank buffer
+  (a full repaint) — a diff assumes both buffers share geometry — which is the
+  tuition host's responsibility, not the backend's.
 - **Capabilities.** `tuition_caps` probes the terminal (DA/DSR); xterm.js answers
   the standard queries, but handing tuition a fixed capability profile for the
   xterm.js backend would be more predictable than round-tripping probes.

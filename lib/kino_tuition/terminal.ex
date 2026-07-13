@@ -116,16 +116,15 @@ defmodule KinoTuition.Terminal do
   asset "main.js" do
     """
     export async function init(ctx, data) {
-      // Load xterm.js on demand. `importJS`/`importCSS` are Livebook's mediated
-      // loaders; if your Livebook's CSP forbids the CDN, vendor these assets and
-      // point the URLs at local copies instead.
+      // Load xterm.js and the fit addon on demand. `importJS`/`importCSS` are
+      // Livebook's mediated loaders; if your Livebook's CSP forbids the CDN,
+      // vendor these assets and point the URLs at local copies instead.
       await ctx.importCSS("https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css");
       await ctx.importJS("https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js");
+      await ctx.importJS("https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js");
 
-      // xterm's UMD build attaches the constructor to the widget's window.
-      const Terminal = window.Terminal;
-
-      const term = new Terminal({
+      // The UMD builds attach their constructors to the widget's window.
+      const term = new window.Terminal({
         cols: data.cols,
         rows: data.rows,
         fontFamily: "monospace",
@@ -134,22 +133,39 @@ defmodule KinoTuition.Terminal do
         // rewrite the byte stream.
         convertEol: false
       });
+
+      const fitAddon = new window.FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
       term.open(ctx.root);
       term.focus();
 
-      // Browser -> server: forward every keystroke as raw bytes.
+      // Fit the terminal to the cell's width, then report the real geometry so
+      // the server lays its first frame out for the size actually on screen.
+      // `fit()` only fires `onResize` when the grid changes, so report the
+      // initial size explicitly to cover the no-change case too.
+      fitAddon.fit();
+      ctx.pushEvent("resize", { cols: term.cols, rows: term.rows });
+
+      // Browser -> server.
       term.onData((bytes) => ctx.pushEvent("stdin", bytes));
+      // A later fit (on cell resize) changes the grid and fires this; the server
+      // updates its size, and tuition repaints into the new geometry.
+      term.onResize(({ cols, rows }) => ctx.pushEvent("resize", { cols, rows }));
 
       // Server -> browser: write rendered ANSI straight to the terminal.
       ctx.handleEvent("stdout", (ansi) => term.write(ansi));
 
-      // The server holds off starting the tuition session until a terminal is
-      // ready to receive its first frame; tell it we are.
-      ctx.pushEvent("ready", {});
+      // Re-fit (debounced) whenever the cell's width changes.
+      let pending;
+      const observer = new ResizeObserver(() => {
+        clearTimeout(pending);
+        pending = setTimeout(() => fitAddon.fit(), 100);
+      });
+      observer.observe(ctx.root);
 
-      // NOTE: dynamic resize (via the xterm fit addon, reporting back through the
-      // "resize" event the server already handles) is a follow-up; the geometry
-      // is fixed at `data.cols` x `data.rows` for now.
+      // The terminal exists and its size is reported; let the server start the
+      // session (once) now that a client can display its first frame.
+      ctx.pushEvent("ready", {});
     }
     """
   end

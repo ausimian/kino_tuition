@@ -11,3 +11,6 @@
   - `KinoTuition.Backend` — a `:tuition_term` backend forwarding to the bridge, so
     a tuition host opens a Livebook-backed terminal with
     `backend: KinoTuition.Backend`.
+- The browser terminal fits the notebook cell's width (xterm fit addon) and
+  reports size changes back through the widget, so the tuition layout follows the
+  on-screen geometry.
