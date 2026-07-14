@@ -25,6 +25,7 @@ defmodule KinoTuition.Terminal do
   use Kino.JS
   use Kino.JS.Live
 
+  alias Kino.JS.Live
   alias KinoTuition.Bridge
 
   @default_cols 80
@@ -49,11 +50,11 @@ defmodule KinoTuition.Terminal do
     * `:cols` — initial terminal width in columns (default `#{@default_cols}`)
     * `:rows` — initial terminal height in rows (default `#{@default_rows}`)
   """
-  @spec new((map() -> any()), keyword()) :: Kino.JS.Live.t()
+  @spec new((map() -> any()), keyword()) :: Live.t()
   def new(run, opts \\ []) when is_function(run, 1) do
     cols = Keyword.get(opts, :cols, @default_cols)
     rows = Keyword.get(opts, :rows, @default_rows)
-    Kino.JS.Live.new(__MODULE__, %{run: run, cols: cols, rows: rows})
+    Live.new(__MODULE__, %{run: run, cols: cols, rows: rows})
   end
 
   @impl true
