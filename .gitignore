@@ -1,0 +1,22 @@
+# The directory Mix will write generated .beam files to.
+/_build/
+
+# The directory Mix downloads dependencies to.
+/deps/
+
+# Generated docs.
+/doc/
+
+# Coverage reports.
+/cover/
+
+# Editor / language-server cruft.
+/.elixir_ls/
+/.lexical/
+
+# Crash dumps and build artefacts.
+erl_crash.dump
+*.ez
+kino_tuition-*.tar
+
+.DS_Store
