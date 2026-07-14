@@ -12,6 +12,11 @@ Run the cell below. It opens an xterm.js terminal wired to a `tuition` session �
 the `tuition_demo` reference loop — running entirely on the server, its frames
 streamed to the browser and your keystrokes streamed back.
 
+> Note: `tuition_demo` probes terminal capabilities at startup. Over Livebook that
+> probe is unreliable (see `KinoTuition.Backend`): colours may fall back to the
+> 256-colour baseline and, on a slow link, a brief burst of stray input can appear
+> at startup. The shell cell below uses a non-probing host and is unaffected.
+
 ```elixir
 KinoTuition.new(fn opts -> :tuition_demo.start(opts) end, cols: 100, rows: 30)
 ```
@@ -19,10 +24,12 @@ KinoTuition.new(fn opts -> :tuition_demo.start(opts) end, cols: 100, rows: 30)
 ## Hosting the multi-pane shell
 
 Any tuition host works — you just forward the options map (with `backend:` and
-`bridge:` already merged in) to it. For the pane shell:
+`bridge:` already merged in) to it. `tuition_shell.start/2` takes `{Module, Title}`
+pane specs; `tuition_widget_demo` is the demo pane module `tuition` ships (it
+implements the `tuition_pane` behaviour). The shell does not probe.
 
 ```elixir
-panes = [{:tuition_demo_pane, "Demo"}]
+panes = [{:tuition_widget_demo, "Widgets"}]
 
 KinoTuition.new(fn opts -> :tuition_shell.start(panes, opts) end, cols: 120, rows: 40)
 ```
