@@ -91,7 +91,10 @@ by tests. Follow-ups:
   and the tuition layout follow what is on screen. Note that on a size change
   `tuition_render` expects the loop to restart its diff from a fresh blank buffer
   (a full repaint) — a diff assumes both buffers share geometry — which is the
-  tuition host's responsibility, not the backend's.
+  tuition host's responsibility, not the backend's. With several clients
+  connected the geometry is owned by the client that started the session; a
+  second viewer's resizes are ignored rather than clobbering the shared layout
+  (a full per-client session is a larger follow-up).
 - **Capability probing is unreliable over Livebook.** A tuition host that probes
   (e.g. `tuition_demo`) writes terminal queries and waits ~100 ms for the replies
   (`tuition_caps:probe/1`). Over Livebook the server→browser→xterm→server

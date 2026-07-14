@@ -55,7 +55,8 @@ defmodule KinoTuition.Terminal do
   def init(%{run: run, cols: cols, rows: rows}, ctx) do
     {:ok, bridge} = Bridge.start_link(output: self(), size: {cols, rows})
 
-    {:ok, assign(ctx, run: run, bridge: bridge, cols: cols, rows: rows, started: false)}
+    {:ok,
+     assign(ctx, run: run, bridge: bridge, cols: cols, rows: rows, started: false, owner: nil)}
   end
 
   @impl true
@@ -74,8 +75,18 @@ defmodule KinoTuition.Terminal do
   end
 
   def handle_event("resize", %{"cols" => cols, "rows" => rows}, ctx) do
-    Bridge.resize(ctx.assigns.bridge, {cols, rows})
-    {:noreply, assign(ctx, cols: cols, rows: rows)}
+    # stdout is broadcast to every connected client, but the tuition loop can lay
+    # out for only one geometry — so only the client that owns the session (the
+    # first to go "ready") drives the size. A second viewer whose viewport is a
+    # different size would otherwise clobber the owner's geometry and leave every
+    # other client's cursor-addressed frames misaligned. Before the session starts
+    # there is no owner yet, so the initializing client's first fit still lands.
+    if owning_client?(ctx) do
+      Bridge.resize(ctx.assigns.bridge, {cols, rows})
+      {:noreply, assign(ctx, cols: cols, rows: rows)}
+    else
+      {:noreply, ctx}
+    end
   end
 
   @impl true
@@ -110,8 +121,15 @@ defmodule KinoTuition.Terminal do
       send(parent, {:session_done, result})
     end)
 
-    assign(ctx, started: true)
+    assign(ctx, started: true, owner: ctx.origin)
   end
+
+  # The session is shared but has a single geometry, so exactly one client owns
+  # the size: the one whose "ready" started the session. Until then (owner nil)
+  # any client may set the initial size; afterwards only the owner's resizes are
+  # applied and other clients' are dropped.
+  defp owning_client?(%{assigns: %{owner: nil}}), do: true
+  defp owning_client?(%{assigns: %{owner: owner}} = ctx), do: ctx.origin == owner
 
   asset "main.js" do
     """
