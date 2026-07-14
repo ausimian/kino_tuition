@@ -15,8 +15,13 @@ defmodule KinoTuition.MixProject do
       description: description(),
       package: package(),
       source_url: @source_url,
-      docs: docs()
+      docs: docs(),
+      aliases: aliases()
     ]
+  end
+
+  def cli do
+    [preferred_envs: [precommit: :test]]
   end
 
   def application do
@@ -33,7 +38,20 @@ defmodule KinoTuition.MixProject do
       # Livebook resolves this transitively, so notebook users need no extra
       # setup. Swap for a Hex dependency once tuition is published.
       {:tuition, github: "ausimian/tuition"},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+    ]
+  end
+
+  defp aliases do
+    [
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "credo --strict",
+        "test"
+      ]
     ]
   end
 

@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  precommit:
+    name: precommit (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Report every combination, don't cancel siblings on the first failure.
+      fail-fast: false
+      matrix:
+        # Each Elixir paired with every Erlang/OTP it supports, per the official
+        # compatibility table (elixir/compatibility-and-deprecations):
+        #   1.18 -> OTP 25-27, 1.19 -> OTP 26-28, 1.20 -> OTP 27-29.
+        include:
+          - elixir: '1.18'
+            otp: '25'
+          - elixir: '1.18'
+            otp: '26'
+          - elixir: '1.18'
+            otp: '27'
+          - elixir: '1.19'
+            otp: '26'
+          - elixir: '1.19'
+            otp: '27'
+          - elixir: '1.19'
+            otp: '28'
+          - elixir: '1.20'
+            otp: '27'
+          - elixir: '1.20'
+            otp: '28'
+          - elixir: '1.20'
+            otp: '29'
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir & OTP
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+
+      # deps/ carries the rebar3-built tuition dep too, so key the cache on the
+      # exact toolchain as well as mix.lock.
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-otp${{ matrix.otp }}-elixir${{ matrix.elixir }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-otp${{ matrix.otp }}-elixir${{ matrix.elixir }}-
+
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      # precommit's `deps.unlock --unused` fixes the lockfile in place, which a CI
+      # runner would do silently; reject a stale committed lockfile up front with
+      # the checking form instead (version-independent, so safe across the matrix).
+      - name: Check lockfile has no unused deps
+        run: mix deps.unlock --check-unused
+
+      # The single validation gate: compile --warnings-as-errors, deps.unlock
+      # --unused, format, credo --strict, test.
+      - name: mix precommit
+        run: mix precommit
