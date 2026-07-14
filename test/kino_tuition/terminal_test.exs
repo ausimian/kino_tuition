@@ -49,4 +49,22 @@ defmodule KinoTuition.TerminalTest do
 
     assert Task.await(other) == %{cols: 100, rows: 30}
   end
+
+  test "the started session is handed a fixed xterm.js caps profile, not a probe" do
+    test = self()
+    run = fn opts -> send(test, {:started, opts}) end
+
+    kino = KinoTuition.new(run)
+    connect(kino)
+    push_event(kino, "ready", %{})
+
+    assert_receive {:started, opts}
+    assert opts.backend == KinoTuition.Backend
+
+    # The host is handed the xterm.js profile verbatim (baseline + truecolor), so
+    # tuition_caps:resolve/2 uses it instead of writing an interactive probe.
+    assert opts.caps == :tuition_caps.apply_colorterm(~c"truecolor", :tuition_caps.baseline())
+    # ...and it genuinely enables truecolor over the bare baseline.
+    refute opts.caps == :tuition_caps.baseline()
+  end
 end
