@@ -72,6 +72,12 @@ jobs:
       - name: Fetch dependencies
         run: mix deps.get
 
+      # precommit's `deps.unlock --unused` fixes the lockfile in place, which a CI
+      # runner would do silently; reject a stale committed lockfile up front with
+      # the checking form instead (version-independent, so safe across the matrix).
+      - name: Check lockfile has no unused deps
+        run: mix deps.unlock --check-unused
+
       # The single validation gate: compile --warnings-as-errors, deps.unlock
       # --unused, format, credo --strict, test.
       - name: mix precommit
