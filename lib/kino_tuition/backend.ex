@@ -33,9 +33,13 @@ defmodule KinoTuition.Backend do
   a genuine `Alt`+`Shift`+`P` keystroke, so the reply can't be stripped from the
   input stream unambiguously, and making `write/2` synchronous doesn't help (the
   browser round-trip is unacknowledged and the probe's timeout is the host's).
-  Prefer a non-probing host for production — `tuition_shell` does not probe. The
-  proper fix is an upstream hook to skip probing and inject xterm.js's known-fixed
-  capabilities; tracked as a follow-up.
+  The fix is a layer up, at the host's capability hook: xterm.js is a fixed, known
+  terminal, so `KinoTuition.Terminal` hands the host a fixed capability profile
+  through tuition's `caps` option (`tuition_caps:resolve/2`) — the assumed baseline
+  plus truecolor — rather than letting it probe. With `caps` supplied the host
+  writes no device queries at all, so neither the colour degradation nor the
+  stray-input problem arises. A probe-unaware host still probes; prefer one that
+  honours `caps` (e.g. `tuition_demo`) over Livebook.
   """
   @behaviour :tuition_term
 

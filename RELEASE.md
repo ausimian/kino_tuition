@@ -14,3 +14,9 @@
 - The browser terminal fits the notebook cell's width (xterm fit addon) and
   reports size changes back through the widget, so the tuition layout follows the
   on-screen geometry.
+- Terminal capabilities are supplied, not probed. The widget injects a fixed
+  profile for xterm.js — the assumed baseline plus truecolor — through tuition's
+  `caps` option, so a probe-aware host (via `tuition_caps:resolve/2`) skips the
+  interactive capability probe, which is unreliable over Livebook's async
+  round-trip. This keeps 24-bit colour and stops the probe's late replies from
+  leaking into input.

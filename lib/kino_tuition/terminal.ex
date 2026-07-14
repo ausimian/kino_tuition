@@ -34,10 +34,15 @@ defmodule KinoTuition.Terminal do
   Build a terminal widget that runs `run`.
 
   `run` is a 1-arity function that starts a tuition host, given the options map to
-  pass it. `KinoTuition` merges `backend:` and `bridge:` into that map, so a
-  typical `run` just forwards it to a tuition entrypoint:
+  pass it. `KinoTuition` merges `backend:`, `bridge:` and `caps:` into that map,
+  so a typical `run` just forwards it to a tuition entrypoint:
 
       KinoTuition.Terminal.new(fn opts -> :tuition_demo.start(opts) end)
+
+  The injected `caps:` is a fixed profile for xterm.js (baseline + truecolor) that
+  a probe-aware host (`tuition_caps:resolve/2`) uses verbatim instead of probing
+  the terminal — the probe is unreliable over Livebook. A custom `run` may
+  override the key before calling its entrypoint. See `KinoTuition.Backend`.
 
   Options:
 
@@ -109,7 +114,7 @@ defmodule KinoTuition.Terminal do
     parent = self()
 
     spawn(fn ->
-      opts = %{backend: KinoTuition.Backend, bridge: bridge}
+      opts = %{backend: KinoTuition.Backend, bridge: bridge, caps: xterm_caps()}
 
       result =
         try do
@@ -122,6 +127,22 @@ defmodule KinoTuition.Terminal do
     end)
 
     assign(ctx, started: true, owner: ctx.origin)
+  end
+
+  # xterm.js is a fixed, known terminal, but it cannot answer tuition's
+  # interactive capability probe over Livebook's async round-trip: the ~100 ms
+  # read window overruns, so the probe both fails (colours fall back to the
+  # 256-colour baseline) and leaks its late replies into input — see the
+  # "Capability probing over Livebook" note in `KinoTuition.Backend`. So rather
+  # than let the host probe, we hand it a fixed capability profile through
+  # tuition's `caps` option (`tuition_caps:resolve/2`), which uses it verbatim
+  # and writes no terminal queries. The profile is the always-assumed baseline
+  # plus truecolor — the one optional enrichment xterm.js clearly supports and
+  # the one the probe existed to detect; the rest stay at their safe-off
+  # baseline. `apply_colorterm/2` is the public way to set truecolor without
+  # reaching into tuition's caps record.
+  defp xterm_caps do
+    :tuition_caps.apply_colorterm(~c"truecolor", :tuition_caps.baseline())
   end
 
   # The session is shared but has a single geometry, so exactly one client owns

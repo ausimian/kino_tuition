@@ -95,18 +95,16 @@ by tests. Follow-ups:
   connected the geometry is owned by the client that started the session; a
   second viewer's resizes are ignored rather than clobbering the shared layout
   (a full per-client session is a larger follow-up).
-- **Capability probing is unreliable over Livebook.** A tuition host that probes
-  (e.g. `tuition_demo`) writes terminal queries and waits ~100 ms for the replies
-  (`tuition_caps:probe/1`). Over Livebook the server→browser→xterm→server
-  round-trip usually exceeds that window, so the probe times out and colours
-  degrade to the 256-colour baseline. The late replies then arrive as input:
-  xterm's `?`-private CSI answers (DA1, DECRQM, kitty-flags) are harmlessly
-  ignored by tuition's input parser, but the DECRQSS truecolor read-back — a DCS
-  (`ESC P … ST`) — is mis-decoded as a short burst of `Alt`-key keystrokes at
-  startup. **Prefer a non-probing host for production** — `tuition_shell` does not
-  probe, so it is unaffected. The clean fix is an upstream tuition hook to skip
-  probing and accept a fixed capability profile for the xterm.js backend (whose
-  capabilities are known and constant); that is tracked as a follow-up. See
+- **Capabilities are supplied, not probed.** A tuition host that probes the
+  terminal (e.g. `tuition_demo`, via `tuition_caps:probe/1`) writes device queries
+  and waits ~100 ms for the replies. Over Livebook the server→browser→xterm→server
+  round-trip usually exceeds that window, so a probe would both time out (colours
+  falling back to the 256-colour baseline) and leak its late replies into input —
+  the DECRQSS truecolor read-back is a DCS (`ESC P … ST`) that decodes as a short
+  burst of `Alt`-key keystrokes. So the widget does not probe: `KinoTuition.Terminal`
+  injects a fixed profile for xterm.js — the assumed baseline plus truecolor —
+  through tuition's `caps` option (`tuition_caps:resolve/2`), which the host uses
+  verbatim, writing no queries. A custom host can override the injected `caps`. See
   `KinoTuition.Backend`.
 - **Asset loading.** xterm.js is loaded from a CDN via Livebook's mediated
   `importJS`/`importCSS`. If your Livebook's CSP forbids that, vendor the assets
